@@ -7,18 +7,24 @@
 # Pre-requisites: The dataset of interest includes all shooting occurrences from 2014 to 2019 by occurred date aggregated by Division.  
 # Any other information needed? Shootings in this data set include both firearm discharges and shooting events. 
 
-
 #### Workspace setup ####
-library(opendatatoronto)
-library(tidyverse)
-library(dplyr)
+import pandas as pd
 
 #### Clean data ####
-raw_data <- read_csv("inputs/data/raw_data/shooting_occurrence.csv")
-# clean the dataset accordingly and save the dataset
-clean <- data.frame(id=raw_data$Index_, year=raw_data$OccurredYear, division=raw_data$GeoDivision, count=raw_data$Count_)
-glimpse(clean)
-any(is.na(clean)) # check for missing values
+# Read raw data
+raw_data = pd.read_csv("data/raw_data/shooting_occurrence.csv")
+
+# Select and rename relevant columns
+clean = raw_data.rename(columns={
+    "Index_": "id",
+    "OccurredYear": "year",
+    "GeoDivision": "division",
+    "Count_": "count"
+})[["id", "year", "division", "count"]]
+
+# Display structure and check for missing values
+print(clean.info())
+print("Any missing values?", clean.isna().any().any())
 
 #### Save data ####
-write_csv(clean, "inputs/data/analysis_data/cleaned_shooting_occurrence.csv") 
+clean.to_csv("data/analysis_data/cleaned_shooting_occurrence.csv", index=False)

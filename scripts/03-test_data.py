@@ -7,23 +7,51 @@
 # Pre-requisites: The dataset of interest includes all shooting occurrences from 2014 to 2019 by occurred date aggregated by Division.  
 # Any other information needed? Shootings in this data set include both firearm discharges and shooting events. 
 
-
 #### Workspace setup ####
-library(opendatatoronto)
-library(tidyverse)
-library(dplyr)
+import pandas as pd
 
 #### Test data ####
-clean_data <- read_csv("inputs/data/analysis_data/cleaned_shooting_occurrence.csv")
-any(is.na(clean_data)) # check for missing values
-length(unique(clean_data$id)) == nrow(clean_data) # check if id is unique
-# check shooting occurrences by year
-table(clean_data$year)
-# check shooting occurrences by geographic division
-table(clean_data$division)
-# get the numerical summarial by year
-clean %>% group_by(year) %>% 
-  summarize(n=n(), min=min(count), Q1=quantile(count,probs=0.25), median=quantile(count,probs=0.5), Q3=quantile(count,probs=0.75), max=max(count), mean=mean(count), sd=sd(count))
-# get the numerical summarial by division
-clean %>% group_by(division) %>% 
-  summarize(n=n(), min=min(count), Q1=quantile(count,probs=0.25), median=quantile(count,probs=0.5), Q3=quantile(count,probs=0.75), max=max(count), mean=mean(count), sd=sd(count))
+clean_data = pd.read_csv("inputs/data/analysis_data/cleaned_shooting_occurrence.csv")
+
+# Check for missing values
+print("Any missing values?", clean_data.isna().any().any())
+
+# Check if 'id' is unique
+is_id_unique = clean_data['id'].is_unique
+print("Is 'id' unique?", is_id_unique)
+
+# Check shooting occurrences by year
+print("Occurrences by year:")
+print(clean_data['year'].value_counts().sort_index())
+
+# Check shooting occurrences by geographic division
+print("Occurrences by division:")
+print(clean_data['division'].value_counts().sort_index())
+
+# Summary statistics by year
+summary_by_year = clean_data.groupby("year")["count"].agg(
+    n="count",
+    min="min",
+    Q1=lambda x: x.quantile(0.25),
+    median=lambda x: x.quantile(0.5),
+    Q3=lambda x: x.quantile(0.75),
+    max="max",
+    mean="mean",
+    sd="std"
+)
+print("Summary by year:")
+print(summary_by_year)
+
+# Summary statistics by division
+summary_by_division = clean_data.groupby("division")["count"].agg(
+    n="count",
+    min="min",
+    Q1=lambda x: x.quantile(0.25),
+    median=lambda x: x.quantile(0.5),
+    Q3=lambda x: x.quantile(0.75),
+    max="max",
+    mean="mean",
+    sd="std"
+)
+print("Summary by division:")
+print(summary_by_division)
