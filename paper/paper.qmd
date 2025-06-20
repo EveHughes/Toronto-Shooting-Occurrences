@@ -16,16 +16,13 @@ number-sections: true
 bibliography: references.bib
 ---
 
-```{r}
+```{python}
 #| include: false
 #| warning: false
 #| message: false
 
-library(dplyr)
-library(ggplot2)
-library(tidyverse)
-library(kableExtra)
-library(opendatatoronto)
+import matplotlib.pyplot as plt
+import pandas as pd
 ```
 
 # Introduction
@@ -56,95 +53,159 @@ For the purpose of data cleaning, we identified that both `_id` and Index_ serve
 
 Based on the cleaned dataset, we then generated summary statistics and visualized the relationships between the variables.
 
-```{r}
-#| include: false
-
-package <- show_package("f29feb49-ceb1-44bf-a2b6-5fc6a0e6147a") # get package
-# get all resources for this package
-resources <- list_package_resources("f29feb49-ceb1-44bf-a2b6-5fc6a0e6147a")
-# identify datastore resources
-datastore_resources <- filter(resources, tolower(format) %in% c('csv', 'geojson'))
-# load the first datastore resource which is in 'csv'
-data <- filter(datastore_resources, row_number()==1) %>% get_resource()
-glimpse(data)
-any(is.na(data)) # check for missing values
-
-# clean the dataset accordingly and save the dataset
-clean <- data.frame(id=data$Index_, year=data$OccurredYear, division=data$GeoDivision, count=data$Count_)
-glimpse(clean)
-any(is.na(clean)) # check for missing values
-# write_csv(clean, "inputs/data/analysis_data/cleaned_shooting_occurrence.csv") 
-```
-
 ## Temporal Dimension {#sec-two}
 
-```{r}
+```{python}
 #| label: tbl-one
 #| tbl-cap: Summary Statistics for Division Shooting Occurrences by Year (2014-2019)
 #| echo: false
 #| warning: false
 
-# get the numerical summaries by year
-yearly_summary <- clean %>% group_by(year) %>%
-  summarize(min = min(count), Q1 = quantile(count, probs = 0.25), median = quantile(count, probs = 0.5),
-            Q3 = quantile(count, probs = 0.75), max = max(count), mean = mean(count), sd = sd(count))
-# display as a kable
-kable(yearly_summary, 
-      col.names = c("Year", "Minimum", "Q1", "Median", "Q3", "Maximum", "Mean", "Standard Deviation")) %>%
-  kable_styling(full_width = FALSE, position = "center")
+# Load data
+clean_data = pd.read_csv("../data/analysis_data/cleaned_shooting_occurrence.csv")
+
+# Calculate numerical summaries by year
+yearly_summary = clean_data.groupby("year")["count"].agg(
+    Minimum="min",
+    Q1=lambda x: x.quantile(0.25),
+    Median=lambda x: x.quantile(0.5),
+    Q3=lambda x: x.quantile(0.75),
+    Maximum="max",
+    Mean="mean",
+    Std_Dev="std"
+).reset_index().rename(columns={"year": "Year"})
+
+# Display using matplotlib as a table (Quarto-friendly)
+fig, ax = plt.subplots(figsize=(10, 3))
+ax.axis('off')
+table = ax.table(
+    cellText=yearly_summary.round(2).values,
+    colLabels=yearly_summary.columns,
+    cellLoc='center',
+    loc='center'
+)
+table.auto_set_font_size(False)
+table.set_fontsize(9)
+table.scale(1.2, 1.2)
+plt.tight_layout()
+plt.show()
 ```
 
 The summary statistics in @tbl-one show a notable upward trend in division shooting occurrences in Toronto from 2014 to 2019. The mean number of shooting occurrences increased from approximately 11.06 in 2014 to 30.75 in 2019, suggesting a growing problem of gun violence over the six-year period. The median value follows a similar pattern, rising from 9 in 2014 to 25 in 2019. This growth is also evidenced by the increasing spread of data that the standard deviation has more than doubled from 8.33 in 2014 to 16.6 in 2019, and the interquartile range and range of occurrences has widened over time. This indicates that the variability in shooting occurrences became more pronounced as time progressed. In terms of quantiles, the Q1, median, and Q3 values all increase steadily over the years, showing the fact that division shooting occurrences are generally rising. 
 
-```{r}
+```{python}
 #| label: fig-box
 #| fig-cap: Distribution of GeoDivision Shooting Occurrences by Year (2014-2019)
 #| echo: false
 
-# Shooting Occurance by Year (from 2014 to 2019)
-ggplot(clean) + 
-  geom_boxplot(aes(x=as.factor(year), y=count)) + 
-  labs(x = "Year", y = "Shooting Occurance") + 
-  scale_x_discrete(breaks = c("2014", "2015", "2016", "2017", "2018", "2019"), 
-  labels = c("2014", "2015", "2016", "2017", "2018", "2019")) + 
-  theme_minimal() 
+# Load data
+clean = pd.read_csv("../data/analysis_data/cleaned_shooting_occurrence.csv")
+
+# Prepare data grouped by year
+years = sorted(clean["year"].unique())
+data_by_year = [clean[clean["year"] == year]["count"] for year in years]
+
+# Plot using matplotlib boxplot
+plt.figure(figsize=(8, 5))
+plt.boxplot(data_by_year, labels=years)
+
+plt.xlabel("Year")
+plt.ylabel("Shooting Occurrence")
+plt.title("Shooting Occurrence by Year (2014–2019)")
+plt.grid(True, linestyle="--", alpha=0.5)
+plt.tight_layout()
+plt.show()
 ```
 
 Similar observations can be made from the side by side boxplots @fig-box which shows the distributions of division shooting occurrences by year. The boxplots moved up across the years and the middle box has become wider and wider which shows that the frequency of shootings increases over time.
 
 ## Geographical Dimension {#sec-three}
 
-```{r}
+```{python}
 #| label: tbl-two
 #| tbl-cap: Summary Statistics for Annual Shooting Occurrences by GeoDivision
 #| echo: false
 #| warning: false
 
-# get the numerical summaries by division
-division_summary <- clean %>% group_by(division) %>%
-  summarize(min = min(count), Q1 = quantile(count, probs = 0.25), median = quantile(count, probs = 0.5),
-            Q3 = quantile(count, probs = 0.75), max = max(count), mean = mean(count), sd = sd(count))
-# display as a kable
-kable(division_summary, 
-      col.names = c("Division", "Minimum", "Q1", "Median", "Q3", "Maximum", "Mean", "Standard Deviation")) %>%
-  kable_styling(full_width = FALSE, position = "center")
+# Load the cleaned data
+clean = pd.read_csv("../data/analysis_data/cleaned_shooting_occurrence.csv")
+
+# Group and summarize by division
+division_summary = clean.groupby("division")["count"].agg(
+    Minimum="min",
+    Q1=lambda x: x.quantile(0.25),
+    Median="median",
+    Q3=lambda x: x.quantile(0.75),
+    Maximum="max",
+    Mean="mean",
+    Standard_Deviation="std"
+).reset_index()
+
+# Round values for display
+division_summary_rounded = division_summary.round(2)
+
+# Prepare figure
+fig, ax = plt.subplots(figsize=(10, 6))
+ax.axis("off")
+ax.axis("tight")
+
+# Create table
+table = ax.table(
+    cellText=division_summary_rounded.values,
+    colLabels=division_summary_rounded.columns,
+    cellLoc="center",
+    loc="center"
+)
+
+table.auto_set_font_size(False)
+table.set_fontsize(10)
+table.scale(1.2, 1.2)
+
+plt.title("Shooting Occurrence Summary by Division", pad=20)
+plt.tight_layout()
+plt.show()
 ```
 
 @tbl-two shows the distribution of annual shooting occurrences by geographic division, providing insight into how shootings are concentrated in different areas of Toronto. The summary statistics demonstrate significant variation across divisions. Division D31, with a mean of 57.5 occurrences and a maximum of 68, stands out as having the highest average number of annual shootings, while Division D52, with a mean of 8.17, experiences far fewer annual shootings on average. The standard deviation for Division D31 is relatively high at 14.54, indicating significant variability in shooting occurrences across years. Similarly, Division D23 (mean 43.67, standard deviation 15.19) and Division D54/D55 (mean 28, standard deviation 10.39) also show notable fluctuations in shooting occurrences, suggesting these areas may experience more accidental gun violence compared to other divisions. On the other hand, some divisions (like D52 and D53) show relatively low means and standard deviations, implying fewer and more consistent shooting occurrences over the years. For example, Division D53 has a mean of 7 and a standard deviation of just 4.15, indicating less volatility in gun violence in this area. The interquartile range for most divisions is moderate, but divisions D23 and D31 have larger spreads, showing the observation that shooting occurrences in these areas are more frequent and variable.
 
-```{r}
+```{python}
 #| label: fig-bar
 #| fig-cap: Shooting Occurrences by Year (2014-2019) Across Toronto GeoDivisions
 #| echo: false
 
-# bar graphs for shooting occurrences by Year for each GeoDivision
-ggplot(clean, aes(x = year, y = count, fill = factor(year))) +
-  geom_bar(stat = "identity", position = "dodge") +
-  facet_wrap(~ division) +  # subplot for each GeoDivision
-  labs(x = "Year", y = "Shooting Occurrences", fill = "Year") +
-  scale_x_continuous(breaks = seq(2014, 2019, by = 1)) + 
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 50, hjust = 1))
+# Load data
+clean = pd.read_csv("../data/analysis_data/cleaned_shooting_occurrence.csv")
+
+# Get unique divisions
+divisions = clean["division"].unique()
+num_divisions = len(divisions)
+
+# Set up subplot grid (adjust size if needed)
+cols = 4
+rows = (num_divisions + cols - 1) // cols
+fig, axes = plt.subplots(rows, cols, figsize=(16, rows * 3), constrained_layout=True)
+axes = axes.flatten()
+
+# Plot for each division
+for i, division in enumerate(sorted(divisions)):
+    ax = axes[i]
+    division_data = clean[clean["division"] == division]
+    yearly_counts = division_data.groupby("year")["count"].sum()
+
+    ax.bar(yearly_counts.index, yearly_counts.values, color="skyblue")
+    ax.set_title(f"Division {division}")
+    ax.set_xticks(range(2014, 2020))
+    ax.set_xlabel("Year")
+    ax.set_ylabel("Shooting Occurrences")
+    ax.tick_params(axis='x', rotation=45)
+
+# Turn off unused subplots if any
+for j in range(i + 1, len(axes)):
+    fig.delaxes(axes[j])
+
+# Global title
+plt.suptitle("Shooting Occurrences by Year for Each GeoDivision", fontsize=14)
+plt.show()
 ```
 
 The bar graph (@fig-bar) illustrates the annual shooting occurrences across various divisions in Toronto from 2014 to 2019, with each year represented by a different color as shown in the legend. Each subplot corresponds to a specific division, displaying the changes in shooting occurrences over time. Divisions D31 and D23 show significantly higher shooting occurrences compared to others, with tall bars, particularly in the later years (2017–2019) which suggests these areas experienced more frequent gun violence. Divisions D52 and D53 show consistently low levels of shooting occurrences, as indicated by the short bars across all years which suggests these divisions face fewer issues with gun violence. Some divisions display a clear upward trend, with occurrences increasing gradually each year; while other divisions show no clear pattern or trend, showing variability from year to year without consistent growth or decline. The colors representing 2018 and 2019 (blue and pink) are outstanding in many divisions, indicating that the later years saw a rise in shooting occurrences across multiple areas. On the other hand, 2014 (red) shows the smallest bars in almost every division, suggesting a lower number for shooting incidents at the beginning of the period.
